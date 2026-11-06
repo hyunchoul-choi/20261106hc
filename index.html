@@ -1,0 +1,427 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>고객 품질 지수 현황판</title>
+<style>
+:root{
+  color-scheme:light;
+  --page:#f9f9f7; --surface:#fcfcfb; --ink:#0b0b0b; --ink2:#52514e; --muted:#898781;
+  --grid:#e1e0d9; --axis:#c3c2b7; --border:rgba(11,11,11,.10); --wash:rgba(11,11,11,.05);
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a;
+  --good:#0ca30c; --warn:#fab219; --crit:#d03b3b; --goodtxt:#006300;
+}
+@media (prefers-color-scheme:dark){
+  :root:where(:not([data-theme="light"])){
+    color-scheme:dark;
+    --page:#0d0d0d; --surface:#1a1a19; --ink:#f0efec; --ink2:#c3c2b7; --muted:#898781;
+    --grid:#2c2c2a; --axis:#383835; --border:rgba(255,255,255,.10); --wash:rgba(255,255,255,.06);
+    --s1:#3987e5; --s2:#d95926; --s3:#199e70; --goodtxt:#0ca30c;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --page:#0d0d0d; --surface:#1a1a19; --ink:#f0efec; --ink2:#c3c2b7; --muted:#898781;
+  --grid:#2c2c2a; --axis:#383835; --border:rgba(255,255,255,.10); --wash:rgba(255,255,255,.06);
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --goodtxt:#0ca30c;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--ink);font:14px/1.5 system-ui,-apple-system,"Segoe UI","Malgun Gothic",sans-serif}
+.wrap{max-width:1680px;margin:0 auto;padding:24px 16px 48px}
+header{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start;justify-content:space-between;margin-bottom:20px}
+h1{font-size:22px;margin:0 0 4px;font-weight:650}
+.sub{color:var(--ink2);font-size:13px}
+.badge{display:inline-block;border:1px solid var(--axis);border-radius:999px;padding:1px 8px;font-size:11px;color:var(--ink2);margin-left:6px;vertical-align:middle}
+button,select{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--axis);border-radius:8px;padding:6px 10px;cursor:pointer}
+button:hover,select:hover{background:var(--wash)}
+button:focus-visible,select:focus-visible,tr[tabindex]:focus-visible{outline:2px solid var(--s1);outline-offset:2px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+.kpi .l{color:var(--ink2);font-size:12px}
+.kpi .v{font-size:30px;font-weight:650;line-height:1.2;margin-top:2px}
+.kpi .v small{font-size:14px;font-weight:400;color:var(--ink2);margin-left:4px}
+.kpi .d{font-size:12px;color:var(--ink2);margin-top:2px}
+.grid2{display:grid;grid-template-columns:3fr 2fr;gap:12px;margin-bottom:12px}
+.grid1{margin-bottom:12px}
+h2{font-size:15px;margin:0 0 2px;font-weight:650}
+.note{color:var(--ink2);font-size:12px;margin:0 0 12px}
+.tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 0 10px}
+.seg{display:inline-flex;border:1px solid var(--axis);border-radius:8px;overflow:hidden}
+.seg button{border:0;border-radius:0;background:transparent}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--surface)}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--ink2);margin-left:auto}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+.legend i.t{width:16px;height:0;border-top:2px dashed var(--ink2);border-radius:0;vertical-align:3px}
+#chartBox{position:relative}
+svg text{fill:var(--muted);font-size:11px;font-family:inherit}
+svg text.lbl{fill:var(--ink2);font-size:12px}
+.tip{position:absolute;pointer-events:none;background:var(--surface);border:1px solid var(--axis);border-radius:8px;padding:8px 10px;font-size:12px;box-shadow:0 4px 14px rgba(0,0,0,.12);display:none;z-index:5;min-width:150px}
+.tip b{display:block;margin-bottom:4px}
+.tip div{display:flex;justify-content:space-between;gap:14px}
+.tip i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px}
+.bars{display:grid;gap:6px}
+.brow{display:grid;grid-template-columns:96px 1fr 128px;gap:8px;align-items:center;font-size:12px}
+.brow .n{color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.track{position:relative;height:16px}
+.bar{position:absolute;left:0;top:1px;height:14px;border-radius:0 4px 4px 0;background:var(--s1)}
+.bar.over{background:var(--crit)}
+.ref{position:absolute;top:-3px;bottom:-3px;border-left:2px dashed var(--ink2)}
+.reflbl{display:grid;grid-template-columns:96px 1fr 128px;gap:8px;font-size:11px;color:var(--muted);margin-top:2px}
+.reflbl div{position:relative;height:14px}
+.reflbl span{position:absolute;transform:translateX(-50%);white-space:nowrap}
+.val{white-space:nowrap}
+.chip{display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+.chip .ic{font-size:11px}
+.ic.over{color:var(--crit)} .ic.watch{color:#c98500} .ic.ok{color:var(--good)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:7px 8px;text-align:left;border-bottom:1px solid var(--grid)}
+th{color:var(--ink2);font-weight:550;font-size:12px}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+tbody tr[data-c]{cursor:pointer}
+tbody tr[data-c]:hover{background:var(--wash)}
+.scroll{overflow-x:auto}
+.insight h3{font-size:15px;margin:0 0 6px;font-weight:650}
+.insight ul{margin:8px 0 0;padding-left:18px}
+.insight li{margin:4px 0}
+.insight .q{color:var(--ink2);font-size:12px;margin-bottom:2px}
+.foot{color:var(--muted);font-size:12px;margin-top:16px}
+@media (max-width:900px){
+  .kpis{grid-template-columns:repeat(2,1fr)}
+  .grid2{grid-template-columns:1fr}
+  .brow,.reflbl{grid-template-columns:80px 1fr 112px}
+  .legend{margin-left:0}
+}
+@media (forced-colors:active){.bar{background:Highlight}.bar.over{background:LinkText;border:2px solid CanvasText}}
+
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:16px;align-items:start}
+.chat{position:sticky;top:16px;display:flex;flex-direction:column;height:calc(100vh - 32px);min-height:480px}
+.chat code{background:var(--wash);padding:0 4px;border-radius:4px}
+.cfg{border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin-bottom:8px}
+.cfg summary{cursor:pointer;font-size:13px;color:var(--ink2)}
+.cfg label{display:block;font-size:12px;color:var(--ink2);margin-top:8px}
+.cfg input{display:block;width:100%;margin-top:3px;font:inherit;color:var(--ink);background:var(--page);border:1px solid var(--axis);border-radius:6px;padding:6px 8px}
+.sugg{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.sugg button{font-size:12px;padding:3px 9px;border-radius:999px}
+.msgs{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding:2px 2px 8px}
+.m{max-width:92%;padding:8px 11px;border-radius:12px;white-space:pre-wrap;word-break:break-word;font-size:13px;line-height:1.55}
+.m.u{align-self:flex-end;background:var(--ink);color:var(--surface)}
+.m.a{align-self:flex-start;background:var(--wash)}
+.m.e{align-self:flex-start;border:1px solid var(--crit);color:var(--ink)}
+.m.s{align-self:center;color:var(--muted);font-size:12px;background:none;padding:0}
+.send{display:flex;gap:6px;align-items:flex-end;margin-top:6px}
+.send textarea{flex:1;resize:none;font:inherit;color:var(--ink);background:var(--page);border:1px solid var(--axis);border-radius:8px;padding:7px 9px}
+.send textarea:focus-visible,.cfg input:focus-visible{outline:2px solid var(--s1);outline-offset:1px}
+.send button{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.send button:disabled{opacity:.5;cursor:default}
+@media (max-width:1400px){.grid2{grid-template-columns:1fr}}
+@media (max-width:1100px){.layout{grid-template-columns:1fr}.chat{position:static;height:640px}}
+</style>
+</head>
+<body>
+<div class="wrap"><div class="layout"><main class="main">
+  <header>
+    <div>
+      <h1>고객 품질 지수 현황판 <span class="badge">샘플 데이터</span></h1>
+      <div class="sub" id="meta"></div>
+    </div>
+    <button id="themeBtn" type="button" aria-label="화면 테마 전환">🌓 테마</button>
+  </header>
+
+  <section class="kpis" id="kpis" aria-label="핵심 지표"></section>
+
+  <section class="card insight grid1" id="insight" aria-live="polite"></section>
+
+  <div class="grid2">
+    <section class="card">
+      <h2>고객사별 in-process 지수 추이</h2>
+      <p class="note">제품별 월간 지수(ppm)와 고객 target 비교. 점선 = 고객 target</p>
+      <div class="tools">
+        <label>고객사 <select id="custSel"></select></label>
+        <span class="seg" role="group" aria-label="기간">
+          <button type="button" data-r="6" aria-pressed="false">최근 6개월</button>
+          <button type="button" data-r="12" aria-pressed="true">12개월</button>
+        </span>
+        <button type="button" id="viewBtn" aria-pressed="false">표로 보기</button>
+        <div class="legend" id="legend"></div>
+      </div>
+      <div id="chartBox"><div class="tip" id="tip"></div><div id="chart"></div></div>
+    </section>
+    <section class="card">
+      <h2>제품별 target 대비 수준 (최근월)</h2>
+      <p class="note">지수 ÷ target. 100% 초과 = target 초과</p>
+      <div id="bars"></div>
+    </section>
+  </div>
+
+  <section class="card grid1">
+    <h2>개입 대상 리스트 (초과·주의 제품)</h2>
+    <p class="note">행을 누르면 위 추이 차트가 해당 고객사로 바뀝니다. 초과폭이 큰 순서로 정렬.</p>
+    <div class="scroll"><table id="tbl"></table></div>
+  </section>
+
+  <p class="foot">※ 모든 수치는 시연용 샘플 데이터입니다. 지수 = 불량수 ÷ 사용수 × 1,000,000 (ppm), 고객사 단위는 사용수 가중. 상태 기준: <b>초과</b> = 최근월 지수 &gt; target, <b>주의</b> = target의 90% 이상 또는 최근 3개월 연속 상승 중이며 85% 이상, <b>안정</b> = 그 외. 실제 데이터 연결 시 이 기준은 조정하세요.</p>
+</main>
+
+<aside class="card chat" aria-label="데이터 질문 챗봇">
+  <h2>데이터 질문 챗봇</h2>
+  <p class="note">이 대시보드의 데이터만 근거로 답합니다.</p>
+  <details class="cfg" id="cfg" open>
+    <summary>모델 연결 설정</summary>
+    <label>모델명<input id="cfgModel" type="text" placeholder="예: gpt-4o-mini" autocomplete="off" spellcheck="false"></label>
+    <label>Base URL<input id="cfgUrl" type="text" placeholder="예: https://api.openai.com/v1" autocomplete="off" spellcheck="false"></label>
+    <label>API Key<input id="cfgKey" type="password" placeholder="화면에만 보관, 저장하지 않음" autocomplete="off" spellcheck="false"></label>
+    <div class="note" style="margin:6px 0 0">OpenAI 호환 <code>/chat/completions</code> 형식을 호출합니다. 키는 메모리에만 있고 새로고침하면 지워지며, 입력한 Base URL로만 전송됩니다.</div>
+  </details>
+  <div class="sugg" id="sugg"></div>
+  <div class="msgs" id="msgs" role="log" aria-live="polite"></div>
+  <form class="send" id="chatForm">
+    <textarea id="chatIn" rows="2" placeholder="예: 가장 위험한 제품은? (Enter 전송, Shift+Enter 줄바꿈)"></textarea>
+    <button type="submit" id="sendBtn">전송</button>
+  </form>
+</aside>
+</div></div>
+
+<script>
+/* 샘플 데이터: [월, 고객사코드, 제품, 사용수, 불량수] — 실제 데이터로 교체하세요 */
+const DATA = [["2025-11", "A", "A-100", 110120, 42], ["2025-12", "A", "A-100", 122820, 46], ["2026-01", "A", "A-100", 131953, 49], ["2026-02", "A", "A-100", 108278, 42], ["2026-03", "A", "A-100", 110716, 40], ["2026-04", "A", "A-100", 111294, 42], ["2026-05", "A", "A-100", 111201, 42], ["2026-06", "A", "A-100", 108061, 42], ["2026-07", "A", "A-100", 124658, 48], ["2026-08", "A", "A-100", 121771, 44], ["2026-09", "A", "A-100", 128018, 50], ["2026-10", "A", "A-100", 120383, 46], ["2025-11", "A", "A-200", 97974, 41], ["2025-12", "A", "A-200", 93917, 41], ["2026-01", "A", "A-200", 94170, 41], ["2026-02", "A", "A-200", 95028, 41], ["2026-03", "A", "A-200", 86071, 38], ["2026-04", "A", "A-200", 88058, 39], ["2026-05", "A", "A-200", 89134, 42], ["2026-06", "A", "A-200", 82038, 39], ["2026-07", "A", "A-200", 93722, 44], ["2026-08", "A", "A-200", 92925, 47], ["2026-09", "A", "A-200", 92297, 45], ["2026-10", "A", "A-200", 86198, 43], ["2025-11", "B", "B-10", 196029, 128], ["2025-12", "B", "B-10", 198220, 123], ["2026-01", "B", "B-10", 182605, 112], ["2026-02", "B", "B-10", 192439, 121], ["2026-03", "B", "B-10", 212717, 133], ["2026-04", "B", "B-10", 193777, 118], ["2026-05", "B", "B-10", 193789, 120], ["2026-06", "B", "B-10", 180977, 108], ["2026-07", "B", "B-10", 197793, 123], ["2026-08", "B", "B-10", 200104, 124], ["2026-09", "B", "B-10", 210111, 125], ["2026-10", "B", "B-10", 208767, 120], ["2025-11", "B", "B-20", 165630, 106], ["2025-12", "B", "B-20", 174575, 118], ["2026-01", "B", "B-20", 160880, 106], ["2026-02", "B", "B-20", 155897, 109], ["2026-03", "B", "B-20", 155788, 115], ["2026-04", "B", "B-20", 145044, 108], ["2026-05", "B", "B-20", 158593, 121], ["2026-06", "B", "B-20", 166304, 137], ["2026-07", "B", "B-20", 158131, 129], ["2026-08", "B", "B-20", 167157, 139], ["2026-09", "B", "B-20", 150507, 127], ["2026-10", "B", "B-20", 167596, 149], ["2025-11", "B", "B-30", 147570, 77], ["2025-12", "B", "B-30", 144404, 74], ["2026-01", "B", "B-30", 158193, 84], ["2026-02", "B", "B-30", 137702, 74], ["2026-03", "B", "B-30", 141689, 77], ["2026-04", "B", "B-30", 141840, 77], ["2026-05", "B", "B-30", 157021, 86], ["2026-06", "B", "B-30", 164181, 90], ["2026-07", "B", "B-30", 150209, 83], ["2026-08", "B", "B-30", 138743, 78], ["2026-09", "B", "B-30", 135499, 76], ["2026-10", "B", "B-30", 162565, 89], ["2025-11", "C", "C-X", 87434, 21], ["2025-12", "C", "C-X", 76787, 18], ["2026-01", "C", "C-X", 82914, 19], ["2026-02", "C", "C-X", 79667, 19], ["2026-03", "C", "C-X", 76195, 19], ["2026-04", "C", "C-X", 80951, 19], ["2026-05", "C", "C-X", 76491, 18], ["2026-06", "C", "C-X", 77118, 19], ["2026-07", "C", "C-X", 78615, 19], ["2026-08", "C", "C-X", 84863, 20], ["2026-09", "C", "C-X", 86463, 21], ["2026-10", "C", "C-X", 80793, 20], ["2025-11", "C", "C-Y", 99412, 26], ["2025-12", "C", "C-Y", 96721, 26], ["2026-01", "C", "C-Y", 103010, 28], ["2026-02", "C", "C-Y", 107712, 30], ["2026-03", "C", "C-Y", 106110, 31], ["2026-04", "C", "C-Y", 92306, 26], ["2026-05", "C", "C-Y", 106107, 32], ["2026-06", "C", "C-Y", 92992, 27], ["2026-07", "C", "C-Y", 97341, 28], ["2026-08", "C", "C-Y", 93064, 29], ["2026-09", "C", "C-Y", 92018, 28], ["2026-10", "C", "C-Y", 91389, 29], ["2025-11", "D", "D-1", 326008, 250], ["2025-12", "D", "D-1", 291824, 237], ["2026-01", "D", "D-1", 306749, 237], ["2026-02", "D", "D-1", 285215, 216], ["2026-03", "D", "D-1", 276552, 221], ["2026-04", "D", "D-1", 298261, 228], ["2026-05", "D", "D-1", 316518, 255], ["2026-06", "D", "D-1", 326126, 254], ["2026-07", "D", "D-1", 291285, 234], ["2026-08", "D", "D-1", 296842, 236], ["2026-09", "D", "D-1", 311337, 257], ["2026-10", "D", "D-1", 288278, 239], ["2025-11", "D", "D-2", 215406, 188], ["2025-12", "D", "D-2", 215753, 194], ["2026-01", "D", "D-2", 234675, 214], ["2026-02", "D", "D-2", 225823, 193], ["2026-03", "D", "D-2", 231816, 203], ["2026-04", "D", "D-2", 214139, 192], ["2026-05", "D", "D-2", 223667, 201], ["2026-06", "D", "D-2", 218413, 189], ["2026-07", "D", "D-2", 230304, 205], ["2026-08", "D", "D-2", 204440, 178], ["2026-09", "D", "D-2", 215400, 276], ["2026-10", "D", "D-2", 232774, 219], ["2025-11", "E", "E-A", 186962, 84], ["2025-12", "E", "E-A", 190450, 87], ["2026-01", "E", "E-A", 186363, 86], ["2026-02", "E", "E-A", 165602, 77], ["2026-03", "E", "E-A", 163161, 73], ["2026-04", "E", "E-A", 187030, 87], ["2026-05", "E", "E-A", 165628, 73], ["2026-06", "E", "E-A", 173888, 78], ["2026-07", "E", "E-A", 168514, 77], ["2026-08", "E", "E-A", 174315, 76], ["2026-09", "E", "E-A", 178608, 81], ["2026-10", "E", "E-A", 179474, 76], ["2025-11", "E", "E-B", 126934, 65], ["2025-12", "E", "E-B", 137533, 72], ["2026-01", "E", "E-B", 133469, 70], ["2026-02", "E", "E-B", 142723, 74], ["2026-03", "E", "E-B", 137827, 73], ["2026-04", "E", "E-B", 132931, 73], ["2026-05", "E", "E-B", 130891, 73], ["2026-06", "E", "E-B", 126493, 67], ["2026-07", "E", "E-B", 136023, 74], ["2026-08", "E", "E-B", 134127, 75], ["2026-09", "E", "E-B", 137483, 79], ["2026-10", "E", "E-B", 145424, 85]];
+const CUST = {"A": {"name": "A사", "target": 500}, "B": {"name": "B사", "target": 800}, "C": {"name": "C사", "target": 300}, "D": {"name": "D사", "target": 1000}, "E": {"name": "E사", "target": 600}};
+
+const $ = s => document.querySelector(s);
+const fmt = n => Math.round(n).toLocaleString('ko-KR');
+const pct = (n,d=1) => (n>=0?'+':'')+n.toFixed(d)+'%';
+const M = [...new Set(DATA.map(r=>r[0]))].sort();
+const LAST = M[M.length-1];
+const ppm = (u,d) => d/u*1e6;
+
+/* ---- 집계 ---- */
+const prodMap = new Map();
+DATA.forEach(([m,c,p,u,d])=>{
+  const k=c+'|'+p;
+  if(!prodMap.has(k)) prodMap.set(k,{c,p,rows:{}});
+  prodMap.get(k).rows[m]={u,d};
+});
+const prods = [...prodMap.values()].map(o=>{
+  const s = M.map(m=>ppm(o.rows[m].u,o.rows[m].d));
+  const t = CUST[o.c].target, n=s.length, last=s[n-1];
+  let streak=0; for(let i=n-1;i>=0&&s[i]>t;i--) streak++;
+  const rising = n>=3 && s[n-1]>s[n-2] && s[n-2]>s[n-3];
+  const ratio = last/t;
+  const status = last>t ? 'over' : (ratio>=.9 || (rising&&ratio>=.85)) ? 'watch' : 'ok';
+  return {...o, s, t, last, prev:s[n-2], ratio, streak, rising, status};
+});
+const custCodes = Object.keys(CUST);
+prods.forEach(p=>{ // 고객사 내 제품 순서로 고정 색 슬롯 부여
+  p.slot = prods.filter(q=>q.c===p.c).indexOf(p)+1;
+});
+const totalIdx = m => { let u=0,d=0; prods.forEach(p=>{u+=p.rows[m].u;d+=p.rows[m].d}); return ppm(u,d); };
+const STAT = {over:['▲','초과'], watch:['◆','주의'], ok:['✓','안정']};
+const chip = s => `<span class="chip"><span class="ic ${s}" aria-hidden="true">${STAT[s][0]}</span>${STAT[s][1]}</span>`;
+
+/* ---- 메타 / KPI ---- */
+$('#meta').textContent = `기준월 ${LAST} · ${custCodes.length}개 고객사 · ${prods.length}개 제품 · 지수 = 불량수 ÷ 사용수 × 10⁶ (ppm)`;
+const nOver = prods.filter(p=>p.status==='over').length;
+const nWatch = prods.filter(p=>p.status==='watch').length;
+const nLong = prods.filter(p=>p.streak>=3).length;
+const tot = totalIdx(LAST), totPrev = totalIdx(M[M.length-2]);
+const dTot = (tot/totPrev-1)*100;
+$('#kpis').innerHTML = [
+  ['Target 초과 제품', `${nOver}<small>/ ${prods.length}개</small>`, `최근월 ${LAST} 기준`],
+  ['주의 제품', `${nWatch}<small>/ ${prods.length}개</small>`, 'target 근접 또는 상승 추세'],
+  ['3개월 이상 연속 초과', `${nLong}<small>개 제품</small>`, nLong?prods.filter(p=>p.streak>=3).map(p=>p.p).join(', '):'해당 없음'],
+  ['전체 지수(가중)', `${fmt(tot)}<small>ppm</small>`, `전월 대비 ${dTot>0?'▲ 악화':'▼ 개선'} ${pct(dTot)}`]
+].map(([l,v,d])=>`<div class="card kpi"><div class="l">${l}</div><div class="v">${v}</div><div class="d">${d}</div></div>`).join('');
+
+/* ---- 자동 해석 (규칙 기반, 근거 수치 명시) ---- */
+(function(){
+  const over = prods.filter(p=>p.status==='over').sort((a,b)=>b.streak-a.streak||b.ratio-a.ratio);
+  const watch = prods.filter(p=>p.status==='watch');
+  const li=[];
+  over.filter(p=>p.streak>=2).forEach(p=>li.push(`<b>${CUST[p.c].name} ${p.p}</b>: ${p.streak}개월 연속 target 초과 — 최근월 ${fmt(p.last)} ppm, target ${fmt(p.t)} ppm 대비 ${pct((p.ratio-1)*100)}.`));
+  over.filter(p=>p.streak===1).forEach(p=>li.push(`<b>${CUST[p.c].name} ${p.p}</b>: 최근월 신규 초과 — ${fmt(p.last)} ppm (target ${fmt(p.t)} ppm, ${pct((p.ratio-1)*100)}). 직전월은 ${fmt(p.prev)} ppm.`));
+  watch.forEach(p=>li.push(`<b>${CUST[p.c].name} ${p.p}</b>: target의 ${(p.ratio*100).toFixed(0)}% (${fmt(p.last)} / ${fmt(p.t)} ppm)${p.rising?', 최근 3개월 연속 상승':''}.`));
+  prods.forEach(p=>{ // 단기 급변
+    const mx=Math.max(...p.s); const i=p.s.indexOf(mx);
+    if(i>0 && mx/p.s[i-1]>=1.25) li.push(`<b>${CUST[p.c].name} ${p.p}</b>: ${M[i]}에 전월 대비 ${pct((mx/p.s[i-1]-1)*100,0)} 급등(${fmt(mx)} ppm)${i<p.s.length-1?`, 이후 ${fmt(p.last)} ppm으로 변동`:''}. 일시 요인 여부 확인 필요.`);
+  });
+  const headline = over.length
+    ? `안정적이지 않습니다 — ${prods.length}개 제품 중 ${over.length}개가 target을 초과했고 ${watch.length}개가 주의 구간입니다.`
+    : watch.length ? `전 제품이 target 이내이나 ${watch.length}개 제품이 주의 구간입니다.` : '전 제품이 target 이내로 안정적입니다.';
+  $('#insight').innerHTML = `<div class="q">의사결정 질문: 고객사 in-process 지수가 안정적인가?</div>
+    <h3>${headline}</h3>
+    <div class="sub">전체 가중 지수 ${fmt(tot)} ppm (전월 ${fmt(totPrev)} ppm, ${pct(dTot)}). 사람 개입 지점: 초과 제품은 고객 품질 담당자가 원인 확인 및 고객 회신 여부 판단.</div>
+    <ul>${li.map(x=>'<li>'+x+'</li>').join('')}</ul>
+    <div class="foot" style="margin-top:8px">규칙 기반 자동 해석입니다. 위 수치는 모두 아래 데이터에서 계산된 값이며 추정치는 포함하지 않습니다.</div>`;
+})();
+
+/* ---- 고객사 선택 / 추이 차트 ---- */
+const worst = prods.filter(p=>p.status==='over').sort((a,b)=>b.ratio-a.ratio)[0];
+let cur = worst ? worst.c : custCodes[0], range = 12, tableView = false;
+$('#custSel').innerHTML = custCodes.map(c=>`<option value="${c}">${CUST[c].name} (target ${fmt(CUST[c].target)} ppm)</option>`).join('');
+$('#custSel').value = cur;
+$('#custSel').onchange = e=>{cur=e.target.value;drawTrend()};
+document.querySelectorAll('.seg button').forEach(b=>b.onclick=()=>{
+  range=+b.dataset.r;
+  document.querySelectorAll('.seg button').forEach(x=>x.setAttribute('aria-pressed',x===b));
+  drawTrend();
+});
+$('#viewBtn').onclick=e=>{tableView=!tableView;e.target.setAttribute('aria-pressed',tableView);e.target.textContent=tableView?'차트로 보기':'표로 보기';drawTrend()};
+
+const niceMax = v => { const p=Math.pow(10,Math.floor(Math.log10(v))); for(const f of [1,1.2,1.5,2,2.5,3,4,5,6,8,10]) if(f*p>=v) return f*p; return 10*p; };
+
+function drawTrend(){
+  const list = prods.filter(p=>p.c===cur), t = CUST[cur].target;
+  const from = M.length-range, ms = M.slice(from);
+  $('#legend').innerHTML = list.map(p=>`<span><i style="background:var(--s${p.slot})"></i>${p.p}</span>`).join('')+`<span><i class="t"></i>Target</span>`;
+  const box = $('#chart'); $('#tip').style.display='none';
+  if(tableView){
+    box.innerHTML = `<div class="scroll"><table><thead><tr><th>월</th>${list.map(p=>`<th class="num">${p.p} (ppm)</th>`).join('')}<th class="num">Target</th></tr></thead><tbody>`+
+      ms.map((m,i)=>`<tr><td>${m}</td>${list.map(p=>{const v=p.s[from+i];return `<td class="num">${fmt(v)}${v>t?' ▲':''}</td>`}).join('')}<td class="num">${fmt(t)}</td></tr>`).join('')+`</tbody></table></div><div class="note" style="margin-top:6px">▲ = target 초과</div>`;
+    return;
+  }
+  const W = Math.max(320, box.clientWidth), H = 330;
+  const mg = {l:48, r: W<520?84:124, t:12, b:28};
+  const pw=W-mg.l-mg.r, ph=H-mg.t-mg.b;
+  const ymax = niceMax(Math.max(t, ...list.flatMap(p=>p.s.slice(from)))*1.08);
+  const X = i => mg.l + (ms.length>1? i/(ms.length-1):0)*pw;
+  const Y = v => mg.t + ph - v/ymax*ph;
+  let g='';
+  const step = ymax/4;
+  for(let k=0;k<=4;k++){ const y=Y(k*step);
+    g+=`<line x1="${mg.l}" x2="${W-mg.r}" y1="${y}" y2="${y}" style="stroke:${k?'var(--grid)':'var(--axis)'}" stroke-width="1"/><text x="${mg.l-8}" y="${y+4}" text-anchor="end">${fmt(k*step)}</text>`; }
+  const every = ms.length>8?2:1;
+  ms.forEach((m,i)=>{ if((ms.length-1-i)%every===0) g+=`<text x="${X(i)}" y="${H-8}" text-anchor="middle">${m.slice(2).replace('-','.')}</text>`; });
+  g+=`<line x1="${mg.l}" x2="${W-mg.r}" y1="${Y(t)}" y2="${Y(t)}" style="stroke:var(--ink2)" stroke-width="1.5" stroke-dasharray="6 4"/>`;
+  list.forEach(p=>{
+    const pts = p.s.slice(from).map((v,i)=>[X(i),Y(v)]);
+    g+=`<path d="M${pts.map(q=>q.join(',')).join('L')}" fill="none" style="stroke:var(--s${p.slot})" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+    pts.forEach(q=>g+=`<circle cx="${q[0]}" cy="${q[1]}" r="4" style="fill:var(--s${p.slot});stroke:var(--surface)" stroke-width="2"/>`);
+  });
+  // 직접 라벨 (충돌 회피)
+  const labs = [...list.map(p=>({y:Y(p.s[p.s.length-1]),txt:p.p,slot:p.slot})), {y:Y(t),txt:`Target ${fmt(t)}`,slot:0}].sort((a,b)=>a.y-b.y);
+  for(let i=1;i<labs.length;i++) if(labs[i].y-labs[i-1].y<15) labs[i].y=labs[i-1].y+15;
+  labs.forEach(l=>g+=`<text class="lbl" x="${W-mg.r+10}" y="${l.y+4}">${l.slot?'● ':''}${l.txt}</text>`.replace('● ',l.slot?`<tspan style="fill:var(--s${l.slot})">● </tspan>`:''));
+  g+=`<line id="xh" y1="${mg.t}" y2="${mg.t+ph}" style="stroke:var(--ink2)" stroke-width="1" opacity="0"/><rect id="hit" x="${mg.l}" y="${mg.t}" width="${pw}" height="${ph}" fill="transparent"/>`;
+  const aria = `${CUST[cur].name} 제품별 in-process 지수 추이. `+list.map(p=>`${p.p} 최근월 ${fmt(p.last)}ppm`).join(', ')+`, target ${fmt(t)}ppm.`;
+  box.innerHTML = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="${aria}">${g}</svg>`;
+  const tip=$('#tip'), hit=$('#hit'), xh=$('#xh');
+  const move=e=>{
+    const r=hit.getBoundingClientRect();
+    const i=Math.max(0,Math.min(ms.length-1,Math.round((e.clientX-r.left)/pw*(ms.length-1))));
+    xh.setAttribute('x1',X(i));xh.setAttribute('x2',X(i));xh.setAttribute('opacity',1);
+    tip.innerHTML=`<b>${ms[i]}</b>`+list.map(p=>{const v=p.s[from+i];return `<div><span><i style="background:var(--s${p.slot})"></i>${p.p}</span><span>${fmt(v)} ppm${v>t?' ▲':''}</span></div>`}).join('')+`<div><span>Target</span><span>${fmt(t)} ppm</span></div>`;
+    tip.style.display='block';
+    const bw=box.clientWidth, tw=tip.offsetWidth;
+    let left=X(i)+14; if(left+tw>bw) left=X(i)-tw-14;
+    tip.style.left=Math.max(0,left)+'px'; tip.style.top='16px';
+  };
+  hit.onpointermove=move; hit.onpointerdown=move;
+  hit.onpointerleave=()=>{tip.style.display='none';xh.setAttribute('opacity',0)};
+}
+
+/* ---- target 대비 막대 ---- */
+(function(){
+  const arr=[...prods].sort((a,b)=>b.ratio-a.ratio);
+  const mx = Math.max(120, Math.ceil(arr[0].ratio*100*1.08/10)*10);
+  const refL = 100/mx*100;
+  $('#bars').innerHTML = `<div class="bars">`+arr.map(p=>`
+    <div class="brow" data-tip="${CUST[p.c].name} ${p.p}: ${fmt(p.last)} ppm / target ${fmt(p.t)} ppm">
+      <div class="n">${CUST[p.c].name} ${p.p}</div>
+      <div class="track"><div class="bar ${p.status==='over'?'over':''}" style="width:${Math.min(100,p.ratio*100/mx*100)}%"></div><div class="ref" style="left:${refL}%"></div></div>
+      <div class="val">${(p.ratio*100).toFixed(0)}% ${chip(p.status)}</div>
+    </div>`).join('')+`</div>
+    <div class="reflbl"><div></div><div><span style="left:${refL}%">target 100%</span></div><div></div></div>`;
+  const tip=$('#tip');
+  document.querySelectorAll('.brow').forEach(r=>{
+    r.title=r.dataset.tip; // 보조: 브라우저 기본 툴팁
+  });
+})();
+
+/* ---- 개입 대상 표 ---- */
+(function(){
+  const spark=p=>{
+    const w=110,h=26,mx=Math.max(p.t,...p.s)*1.05,mn=Math.min(p.t,...p.s)*0.95;
+    const X=i=>2+i/(p.s.length-1)*(w-4), Y=v=>h-2-(v-mn)/(mx-mn)*(h-4);
+    return `<svg width="${w}" height="${h}" aria-hidden="true"><line x1="0" x2="${w}" y1="${Y(p.t)}" y2="${Y(p.t)}" style="stroke:var(--ink2)" stroke-dasharray="3 3"/><path d="M${p.s.map((v,i)=>X(i)+','+Y(v)).join('L')}" fill="none" style="stroke:var(--s1)" stroke-width="1.5"/><circle cx="${X(p.s.length-1)}" cy="${Y(p.last)}" r="3" style="fill:var(--s1)"/></svg>`;
+  };
+  const rows=prods.filter(p=>p.status!=='ok').sort((a,b)=>b.ratio-a.ratio);
+  $('#tbl').innerHTML=`<thead><tr><th>상태</th><th>고객사</th><th>제품</th><th class="num">최근월 지수(ppm)</th><th class="num">Target(ppm)</th><th class="num">target 대비</th><th class="num">연속 초과</th><th>12개월 추이</th></tr></thead><tbody>`+
+    (rows.length?rows.map(p=>`<tr data-c="${p.c}" tabindex="0"><td>${chip(p.status)}</td><td>${CUST[p.c].name}</td><td>${p.p}</td><td class="num">${fmt(p.last)}</td><td class="num">${fmt(p.t)}</td><td class="num">${pct((p.ratio-1)*100)}</td><td class="num">${p.streak?p.streak+'개월':'-'}</td><td>${spark(p)}</td></tr>`).join(''):`<tr><td colspan="8">개입 대상 제품이 없습니다.</td></tr>`)+`</tbody>`;
+  document.querySelectorAll('tr[data-c]').forEach(tr=>{
+    const go=()=>{cur=tr.dataset.c;$('#custSel').value=cur;drawTrend();$('#chart').scrollIntoView({behavior:'smooth',block:'center'})};
+    tr.onclick=go; tr.onkeydown=e=>{if(e.key==='Enter')go()};
+  });
+})();
+
+/* ---- 테마 ---- */
+$('#themeBtn').onclick=()=>{
+  const el=document.documentElement;
+  const dark=el.dataset.theme?el.dataset.theme==='dark':matchMedia('(prefers-color-scheme:dark)').matches;
+  el.dataset.theme=dark?'light':'dark';
+};
+
+/* ---- 데이터 질문 챗봇 (모델/URL/키는 화면에서만 입력, 코드에 없음) ---- */
+function buildContext(){
+  const L=[];
+  L.push(`기준월: ${LAST}. 기간: ${M[0]} ~ ${LAST} (샘플 데이터).`);
+  L.push('지수 정의: in-process 지수(ppm) = 불량수 ÷ 사용수 × 1,000,000. 고객사/전체 단위는 사용수 가중(불량수 합 ÷ 사용수 합).');
+  L.push('상태 기준: 초과 = 최근월 지수 > 고객 target / 주의 = target의 90% 이상, 또는 최근 3개월 연속 상승 중이며 85% 이상 / 안정 = 그 외.');
+  L.push('\n[고객사 target(ppm)]');
+  custCodes.forEach(c=>L.push(`${c}: ${CUST[c].name}, target ${CUST[c].target}`));
+  L.push('\n[제품 요약] 고객사코드|제품|target|최근월ppm|target대비%|상태|연속초과개월|월별ppm('+M.join(',')+')');
+  prods.forEach(p=>L.push([p.c,p.p,p.t,Math.round(p.last),(p.ratio*100).toFixed(1),STAT[p.status][1],p.streak,p.s.map(Math.round).join(',')].join('|')));
+  L.push('\n[월별 전체 가중 지수(ppm)] '+M.map(m=>`${m}:${Math.round(totalIdx(m))}`).join(', '));
+  L.push('\n[고객사별 월별 가중 지수(ppm)]');
+  custCodes.forEach(c=>L.push(c+': '+M.map(m=>{let u=0,d=0;prods.filter(p=>p.c===c).forEach(p=>{u+=p.rows[m].u;d+=p.rows[m].d});return Math.round(ppm(u,d))}).join(',')));
+  L.push('\n[원본 데이터] 월,고객사코드,제품,사용수,불량수');
+  DATA.forEach(r=>L.push(r.join(',')));
+  return L.join('\n');
+}
+const SYS = `당신은 고객 품질(in-process 지수) 대시보드의 데이터 분석 도우미입니다.
+규칙:
+1. 아래 [대시보드 데이터]에 있는 값만 근거로 답하세요. 데이터에 없는 내용(원인, 미래 예측, 외부 정보)은 추정하지 말고 "대시보드 데이터에는 없어 답할 수 없습니다"라고 하세요.
+2. 답변에는 근거가 되는 고객사·제품·월·수치(ppm, target 등)를 반드시 함께 적으세요.
+3. 계산이 필요하면 계산 과정을 간단히 보이세요.
+4. 한국어로 간결하게 답하세요.
+
+[대시보드 데이터]
+`;
+const chatHist=[];
+const SUGGS=['지금 가장 위험한 제품은?','target을 초과한 제품과 초과폭을 알려줘','B-20은 언제부터 target을 넘었어?','전월 대비 가장 많이 악화된 제품은?','고객사 지수가 안정적인지 요약해줘'];
+try{ $('#cfgModel').value=localStorage.getItem('cq_model')||''; $('#cfgUrl').value=localStorage.getItem('cq_url')||''; }catch(e){}
+if($('#cfgModel').value && $('#cfgUrl').value) $('#cfg').open=false;
+$('#sugg').innerHTML=SUGGS.map(s=>`<button type="button">${s}</button>`).join('');
+$('#sugg').onclick=e=>{ if(e.target.tagName==='BUTTON'){ $('#chatIn').value=e.target.textContent; $('#chatForm').requestSubmit(); } };
+const addMsg=(cls,txt)=>{ const d=document.createElement('div'); d.className='m '+cls; d.textContent=txt; $('#msgs').appendChild(d); $('#msgs').scrollTop=1e9; return d; };
+addMsg('s','모델명·Base URL·API Key를 입력한 뒤 질문하세요.');
+$('#chatIn').onkeydown=e=>{ if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){ e.preventDefault(); $('#chatForm').requestSubmit(); } };
+$('#chatForm').onsubmit=async e=>{
+  e.preventDefault();
+  const q=$('#chatIn').value.trim(); if(!q) return;
+  const model=$('#cfgModel').value.trim(), key=$('#cfgKey').value.trim();
+  let url=$('#cfgUrl').value.trim().replace(/\/+$/,'');
+  if(!model||!url||!key){ $('#cfg').open=true; addMsg('e','모델명, Base URL, API Key를 모두 입력해 주세요.'); return; }
+  if(!/\/chat\/completions$/.test(url)) url+='/chat/completions';
+  try{ localStorage.setItem('cq_model',model); localStorage.setItem('cq_url',$('#cfgUrl').value.trim()); }catch(e){}
+  $('#chatIn').value=''; addMsg('u',q); chatHist.push({role:'user',content:q});
+  const wait=addMsg('a','답변 생성 중…'); $('#sendBtn').disabled=true;
+  try{
+    const res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
+      body:JSON.stringify({model,temperature:0.2,messages:[{role:'system',content:SYS+buildContext()},...chatHist.slice(-12)]})});
+    const txt=await res.text(); let j; try{j=JSON.parse(txt)}catch(_){}
+    if(!res.ok) throw new Error(`HTTP ${res.status} ${(j&&(j.error&&j.error.message||j.message))||txt.slice(0,200)}`);
+    const ans=j&&j.choices&&j.choices[0]&&j.choices[0].message&&j.choices[0].message.content;
+    if(!ans) throw new Error('응답 형식을 해석할 수 없습니다: '+txt.slice(0,200));
+    wait.textContent=ans; chatHist.push({role:'assistant',content:ans});
+  }catch(err){
+    wait.className='m e';
+    wait.textContent='오류: '+err.message+(err instanceof TypeError?'\n(네트워크/CORS 오류일 수 있습니다. Base URL이 브라우저 직접 호출을 허용하는지 확인하세요.)':'');
+    chatHist.pop();
+  }finally{ $('#sendBtn').disabled=false; $('#msgs').scrollTop=1e9; $('#chatIn').focus(); }
+};
+
+let rz; addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(drawTrend,120)});
+drawTrend();
+</script>
+</body>
+</html>
